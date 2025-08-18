@@ -261,8 +261,7 @@ public class GmailQuickstart {
             System.out.println("No messages found.");
                 return null;
         }
-
-        String apiKey = "";
+        String apiKey = " ";
         List<JsonObject> ans = new ArrayList<>();
         for (Message m : messages) {
             Message full = service.users().messages().get("me", m.getId()).setFormat("full").execute();
