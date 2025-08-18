@@ -77,7 +77,6 @@ public class GoogleOAuthService {
                 .execute();
 
         Credential credential = flow.createAndStoreCredential(tokenResponse, appUserId);
-        // Store securely per user (DB/secret vault). Here we use in-memory for brevity.
         credentialsStore.put(appUserId, credential);
     }
 
