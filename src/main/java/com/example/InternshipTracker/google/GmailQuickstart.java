@@ -7,7 +7,6 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
-import com.google.api.client.json.Json;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
@@ -87,7 +86,7 @@ public class GmailQuickstart {
 
         JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
         JsonArray choices = json.getAsJsonArray("choices");
-        if (choices == null || choices.size() == 0) {
+        if (choices == null || choices.isEmpty()) {
             throw new IllegalStateException("AI response did not contain choices.");
         }
 
@@ -269,9 +268,6 @@ public class GmailQuickstart {
             MessagePart payload = full.getPayload();
             List<MessagePartHeader> headers = payload != null ? payload.getHeaders() : Collections.emptyList();
 
-            String from = getHeader(headers, "From");
-            String subject = getHeader(headers, "Subject");
-            String date = getHeader(headers, "Date");
 
             String body = getPlainTextFromMessage(full);
             if (!apiKey.isBlank() && body != null && !body.isBlank()) {
