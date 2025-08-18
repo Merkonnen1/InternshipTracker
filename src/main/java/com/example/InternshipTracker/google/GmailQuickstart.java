@@ -262,7 +262,7 @@ public class GmailQuickstart {
                 return null;
         }
 
-        String apiKey = "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";
+        String apiKey = "";
         List<JsonObject> ans = new ArrayList<>();
         for (Message m : messages) {
             Message full = service.users().messages().get("me", m.getId()).setFormat("full").execute();
