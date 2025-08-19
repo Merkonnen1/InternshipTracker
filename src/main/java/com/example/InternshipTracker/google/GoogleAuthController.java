@@ -93,7 +93,7 @@ public class GoogleAuthController {
             // Validate state token (compare with what you stored in session)
             String storedState = (String) session.getAttribute("oauthState");
             if (!stateToken.equals(storedState)) {
-                return "redirect:/dashboard?error=invalid_state";
+                return "redirect:/dashboard";
             }
 
             // Exchange authorization code for access token
@@ -102,11 +102,10 @@ public class GoogleAuthController {
             // Clear the state token from session
             session.removeAttribute("oauthState");
 
-            return "redirect:/dashboard?gmailConnected=true";
-
+            return "redirect:/dashboard";
         } catch (Exception e) {
             e.printStackTrace();
-            return "redirect:/dashboard?gmailError=true";
+            return "redirect:/dashboard";
         }
     }
     @PostMapping("/gmail/disconnect")
