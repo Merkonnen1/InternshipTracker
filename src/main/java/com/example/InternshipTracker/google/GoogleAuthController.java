@@ -22,6 +22,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.view.RedirectView;
 import com.example.InternshipTracker.services.InternshipService;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -76,7 +78,37 @@ public class GoogleAuthController {
 //        redirectAttributes.addFlashAttribute("connected", true);
 //        return new RedirectView("/dashboard");
 //    }
+    @GetMapping("/oauth2/callback/google")
+    public String handleCallback(@RequestParam String code,
+                                 @RequestParam String state,
+                                 HttpSession session) {
+        try {
+            // URL decode the state parameter first
+            String decodedState = URLDecoder.decode(state, StandardCharsets.UTF_8);
+            String[] stateParts = decodedState.split(":");
 
+            String appUserId = stateParts[0]; // Your app's user ID
+            String stateToken = stateParts[1]; // Security token
+
+            // Validate state token (compare with what you stored in session)
+            String storedState = (String) session.getAttribute("oauthState");
+            if (!stateToken.equals(storedState)) {
+                return "redirect:/dashboard?error=invalid_state";
+            }
+
+            // Exchange authorization code for access token
+            googleOAuthService.handleOAuthCallback(appUserId, code);
+
+            // Clear the state token from session
+            session.removeAttribute("oauthState");
+
+            return "redirect:/dashboard?gmailConnected=true";
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "redirect:/dashboard?gmailError=true";
+        }
+    }
     @PostMapping("/gmail/disconnect")
     public RedirectView disconnect() {
         User user = internshipService.getCurrentUser();
