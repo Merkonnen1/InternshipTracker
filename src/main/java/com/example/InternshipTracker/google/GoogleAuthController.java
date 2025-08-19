@@ -56,7 +56,7 @@ public class GoogleAuthController {
 
         } catch (Exception e) {
             e.printStackTrace();
-            return "redirect:/dashboard?gmailError=true";
+            return "redirect:/dashboard";
         }
     }
 
