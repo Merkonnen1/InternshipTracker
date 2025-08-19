@@ -59,23 +59,23 @@ public class GoogleAuthController {
     }
 
     // Step 2: Google redirects here with ?code=...&state=...
-    @GetMapping("/oauth2/callback/google")
-    public RedirectView callback(@RequestParam String code,
-                                 @RequestParam String state,
-                                 HttpSession session,
-                                RedirectAttributes redirectAttributes) throws Exception {
-        String expectedState = (String) session.getAttribute("oauth_state");
-        if (expectedState == null || !state.contains(expectedState)) {
-            return new RedirectView("/error?reason=state_mismatch");
-        }
-        User user = internshipService.getCurrentUser();
-        String appUserId = internshipService.getCurrentUser().getId().toString();
-        user.setGmailConnected(true);
-        userRepository.save(user); // persist in DB
-        googleOAuthService.handleOAuthCallback(appUserId, code);
-        redirectAttributes.addFlashAttribute("connected", true);
-        return new RedirectView("/dashboard");
-    }
+//    @GetMapping("/oauth2/callback/google")
+//    public RedirectView callback(@RequestParam String code,
+//                                 @RequestParam String state,
+//                                 HttpSession session,
+//                                RedirectAttributes redirectAttributes) throws Exception {
+//        String expectedState = (String) session.getAttribute("oauth_state");
+//        if (expectedState == null || !state.contains(expectedState)) {
+//            return new RedirectView("/error?reason=state_mismatch");
+//        }
+//        User user = internshipService.getCurrentUser();
+//        String appUserId = internshipService.getCurrentUser().getId().toString();
+//        user.setGmailConnected(true);
+//        userRepository.save(user); // persist in DB
+//        googleOAuthService.handleOAuthCallback(appUserId, code);
+//        redirectAttributes.addFlashAttribute("connected", true);
+//        return new RedirectView("/dashboard");
+//    }
 
     @PostMapping("/gmail/disconnect")
     public RedirectView disconnect() {
