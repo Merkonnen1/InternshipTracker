@@ -33,7 +33,7 @@ public class SecurityConfig {
                         // Require authentication for these
                         .requestMatchers("/dashboard/**", "/api/user/**").authenticated()
 
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
                 // ↓↓↓ ADD CSRF CONFIGURATION ↓↓↓
                 .csrf(csrf -> csrf
