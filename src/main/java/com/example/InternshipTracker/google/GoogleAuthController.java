@@ -66,6 +66,7 @@ public class GoogleAuthController {
         userRepository.save(user); // persist in DB
         googleOAuthService.handleOAuthCallback(appUserId, code);
         redirectAttributes.addFlashAttribute("connected", true);
+        System.out.println("entered");
         return new RedirectView("/dashboard");
     }
 
