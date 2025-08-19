@@ -44,13 +44,13 @@ public class GoogleOAuthService {
                 clientId,
                 clientSecret,
                 List.of(GmailScopes.GMAIL_READONLY))
-                .setAccessType("offline")     // request refresh token
+                .setAccessType("offline") // request refresh token
                 .build();
 
         GoogleAuthorizationCodeRequestUrl url = flow.newAuthorizationUrl()
                 .setRedirectUri(redirectUri)
                 .setState(URLEncoder.encode(appUserId + ":" + stateToken, StandardCharsets.UTF_8))
-                .setAccessType("offline");
+                .set("prompt", "consent"); // force Google permission page
 
         return url.build();
     }
