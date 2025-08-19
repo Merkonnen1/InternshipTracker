@@ -242,7 +242,7 @@ public class GmailQuickstart {
         ListMessagesResponse listResponse = service.users()
                 .messages()
                 .list("me")
-                .setMaxResults(10L)
+                .setMaxResults(1L)
                 .setQ("newer_than:30d")
                 .execute();
 
@@ -251,7 +251,6 @@ public class GmailQuickstart {
             System.out.println("No messages found.");
                 return null;
         }
-        String apiKey = " ";
         return new ArrayList<>();
     }
 
