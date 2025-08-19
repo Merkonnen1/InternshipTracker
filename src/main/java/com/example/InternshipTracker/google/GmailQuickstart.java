@@ -138,15 +138,6 @@ public class GmailQuickstart {
     }
 
 
-    private static String getHeader(List<MessagePartHeader> headers, String name) {
-        if (headers == null) return "";
-        for (MessagePartHeader h : headers) {
-            if (name.equalsIgnoreCase(h.getName())) {
-                return h.getValue();
-            }
-        }
-        return "";
-    }
 
     private static String getPlainTextFromMessage(Message message) {
         if (message == null) return "";
@@ -261,25 +252,7 @@ public class GmailQuickstart {
                 return null;
         }
         String apiKey = " ";
-        List<JsonObject> ans = new ArrayList<>();
-        for (Message m : messages) {
-            Message full = service.users().messages().get("me", m.getId()).setFormat("full").execute();
-
-            MessagePart payload = full.getPayload();
-            List<MessagePartHeader> headers = payload != null ? payload.getHeaders() : Collections.emptyList();
-
-
-            String body = getPlainTextFromMessage(full);
-            if (!apiKey.isBlank() && body != null && !body.isBlank()) {
-                try {
-                    JsonObject extracted = extractJobInfoWithAI(body, apiKey);
-                    ans.add(extracted);
-                } catch (Exception e) {
-                    System.err.println("AI extraction failed: " + e.getMessage());
-                }
-            }
-        }
-        return ans;
+        return new ArrayList<>();
     }
 
 }
