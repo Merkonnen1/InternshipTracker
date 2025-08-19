@@ -45,6 +45,7 @@ public class GoogleAuthController {
         String appUserId = internshipService.getCurrentUser().getId().toString();
         System.out.println(appUserId);
         String state = GoogleOAuthService.generateStateToken();
+        System.out.println(state);
         session.setAttribute("oauth_state", state);
         String authUrl = googleOAuthService.createAuthorizationUrl(appUserId, state);
         return new RedirectView(authUrl);
