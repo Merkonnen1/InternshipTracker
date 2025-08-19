@@ -23,12 +23,19 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // keep CSRF enabled for login; we'll send the token from the form
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/register", "/login", "/css/**", "/js/**").permitAll()
-                    .requestMatchers("/dashboard/**").authenticated()
-                    .anyRequest().authenticated()
-            )
+                .authorizeHttpRequests(auth -> auth
+                        // Allow PUBLIC access to these
+                        .requestMatchers("/", "/home", "/index").permitAll()  // ← ADD THIS
+                        .requestMatchers("/register", "/login", "/css/**", "/js/**").permitAll()
+                        .requestMatchers("/internships", "/api/internships/**").permitAll()  // ← ADD YOUR ENDPOINTS
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()  // ← FOR GOOGLE OAUTH
+
+                        // Require authentication for these
+                        .requestMatchers("/dashboard/**", "/api/user/**").authenticated()
+
+                        .anyRequest().authenticated()  // This catches everything else
+                )
+                // ... rest of your configuration
             .formLogin(form -> form
                 .loginPage("/login")
                 .loginProcessingUrl("/login")
