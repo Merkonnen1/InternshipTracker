@@ -22,8 +22,6 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.view.RedirectView;
 import com.example.InternshipTracker.services.InternshipService;
 
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
@@ -42,72 +40,35 @@ public class GoogleAuthController {
     }
 
     @GetMapping("/gmail/connect")
-    public String connect(HttpSession session) throws Exception {
-        try {
-            // Get your app's user ID from session or authentication
-            String appUserId = internshipService.getCurrentUser().getId().toString();
-            String stateToken = GoogleOAuthService.generateStateToken();
-
-            // Store state token in session for validation
-            session.setAttribute("oauthState", stateToken);
-
-            String authUrl = googleOAuthService.createAuthorizationUrl(appUserId, stateToken);
-            return "redirect:" + authUrl;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "redirect:/dashboard";
-        }
+    public RedirectView connect(HttpSession session) throws Exception {
+        // Replace with your current logged-in user id from your auth system
+        String appUserId = internshipService.getCurrentUser().getId().toString();
+        System.out.println(appUserId);
+        String state = GoogleOAuthService.generateStateToken();
+        session.setAttribute("oauth_state", state);
+        String authUrl = googleOAuthService.createAuthorizationUrl(appUserId, state);
+        return new RedirectView(authUrl);
     }
 
     // Step 2: Google redirects here with ?code=...&state=...
-//    @GetMapping("/oauth2/callback/google")
-//    public RedirectView callback(@RequestParam String code,
-//                                 @RequestParam String state,
-//                                 HttpSession session,
-//                                RedirectAttributes redirectAttributes) throws Exception {
-//        String expectedState = (String) session.getAttribute("oauth_state");
-//        if (expectedState == null || !state.contains(expectedState)) {
-//            return new RedirectView("/error?reason=state_mismatch");
-//        }
-//        User user = internshipService.getCurrentUser();
-//        String appUserId = internshipService.getCurrentUser().getId().toString();
-//        user.setGmailConnected(true);
-//        userRepository.save(user); // persist in DB
-//        googleOAuthService.handleOAuthCallback(appUserId, code);
-//        redirectAttributes.addFlashAttribute("connected", true);
-//        return new RedirectView("/dashboard");
-//    }
     @GetMapping("/oauth2/callback/google")
-    public String handleCallback(@RequestParam String code,
+    public RedirectView callback(@RequestParam String code,
                                  @RequestParam String state,
-                                 HttpSession session) {
-        try {
-            // URL decode the state parameter first
-            String decodedState = URLDecoder.decode(state, StandardCharsets.UTF_8);
-            String[] stateParts = decodedState.split(":");
-
-            String appUserId = stateParts[0]; // Your app's user ID
-            String stateToken = stateParts[1]; // Security token
-
-            // Validate state token (compare with what you stored in session)
-            String storedState = (String) session.getAttribute("oauthState");
-            if (!stateToken.equals(storedState)) {
-                return "redirect:/dashboard";
-            }
-
-            // Exchange authorization code for access token
-            googleOAuthService.handleOAuthCallback(appUserId, code);
-
-            // Clear the state token from session
-            session.removeAttribute("oauthState");
-
-            return "redirect:/dashboard";
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "redirect:/dashboard";
+                                 HttpSession session,
+                                RedirectAttributes redirectAttributes) throws Exception {
+        String expectedState = (String) session.getAttribute("oauth_state");
+        if (expectedState == null || !state.contains(expectedState)) {
+            return new RedirectView("/error?reason=state_mismatch");
         }
+        User user = internshipService.getCurrentUser();
+        String appUserId = internshipService.getCurrentUser().getId().toString();
+        user.setGmailConnected(true);
+        userRepository.save(user); // persist in DB
+        googleOAuthService.handleOAuthCallback(appUserId, code);
+        redirectAttributes.addFlashAttribute("connected", true);
+        return new RedirectView("/dashboard");
     }
+
     @PostMapping("/gmail/disconnect")
     public RedirectView disconnect() {
         User user = internshipService.getCurrentUser();
