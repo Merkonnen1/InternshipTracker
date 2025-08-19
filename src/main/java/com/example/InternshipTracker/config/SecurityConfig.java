@@ -23,37 +23,26 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .authorizeHttpRequests(auth -> auth
-                        // Allow PUBLIC access to these
-                        .requestMatchers("/", "/home", "/index").permitAll()
-                        .requestMatchers("/register", "/login", "/css/**", "/js/**").permitAll()
-                        .requestMatchers("/internships", "/api/internships/**").permitAll()
-                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-
-                        // Require authentication for these
-                        .requestMatchers("/dashboard/**", "/api/user/**").authenticated()
-
-                        .anyRequest().permitAll()
-                )
-                // ↓↓↓ ADD CSRF CONFIGURATION ↓↓↓
-                .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/**", "/register", "/login", "/oauth2/**")
-                )
-                // ↑↑↑ ADD CSRF CONFIGURATION ↑↑↑
-                .formLogin(form -> form
-                        .loginPage("/login")
-                        .loginProcessingUrl("/login")
-                        .usernameParameter("email")
-                        .passwordParameter("password")
-                        .defaultSuccessUrl("/dashboard", true)
-                        .failureUrl("/login?error=true")
-                        .permitAll()
-                )
-                .logout(logout -> logout
-                        .logoutSuccessUrl("/login")
-                        .permitAll()
-                )
-                .authenticationProvider(daoAuthenticationProvider());
+            // keep CSRF enabled for login; we'll send the token from the form
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/register", "/login", "/css/**", "/js/**").permitAll()
+                    .requestMatchers("/dashboard/**").authenticated()
+                    .anyRequest().authenticated()
+            )
+            .formLogin(form -> form
+                .loginPage("/login")
+                .loginProcessingUrl("/login")
+                .usernameParameter("email")      // IMPORTANT: match your form field
+                .passwordParameter("password")
+                .defaultSuccessUrl("/dashboard", true)
+                .failureUrl("/login?error=true")
+                .permitAll()
+            )
+            .logout(logout -> logout
+                .logoutSuccessUrl("/login")
+                .permitAll()
+            )
+            .authenticationProvider(daoAuthenticationProvider());
 
         return http.build();
     }
