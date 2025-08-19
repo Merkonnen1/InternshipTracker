@@ -40,14 +40,22 @@ public class GoogleAuthController {
     }
 
     @GetMapping("/gmail/connect")
-    public RedirectView connect(HttpSession session) throws Exception {
-        // Replace with your current logged-in user id from your auth system
-        String appUserId = internshipService.getCurrentUser().getId().toString();
-        System.out.println(appUserId);
-        String state = GoogleOAuthService.generateStateToken();
-        session.setAttribute("oauth_state", state);
-        String authUrl = googleOAuthService.createAuthorizationUrl(appUserId, state);
-        return new RedirectView(authUrl);
+    public String connect(HttpSession session) throws Exception {
+        try {
+            // Get your app's user ID from session or authentication
+            String appUserId = internshipService.getCurrentUser().getId().toString();
+            String stateToken = GoogleOAuthService.generateStateToken();
+
+            // Store state token in session for validation
+            session.setAttribute("oauthState", stateToken);
+
+            String authUrl = googleOAuthService.createAuthorizationUrl(appUserId, stateToken);
+            return "redirect:" + authUrl;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "redirect:/dashboard?gmailError=true";
+        }
     }
 
     // Step 2: Google redirects here with ?code=...&state=...
