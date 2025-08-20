@@ -245,6 +245,7 @@ public class GmailQuickstart {
                 .execute();
 
         List<Message> messages = listResponse.getMessages();
+        System.out.println("hello");
         if (messages == null || messages.isEmpty()) {
             System.out.println("No messages found.");
             return Collections.emptyList();  // Return empty list instead of null
