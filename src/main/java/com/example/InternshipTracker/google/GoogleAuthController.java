@@ -1,174 +1,123 @@
+// Java
 package com.example.InternshipTracker.google;
 
 import com.example.InternshipTracker.models.User;
 import com.example.InternshipTracker.repositories.UserRepository;
+import com.google.api.services.gmail.Gmail;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import jakarta.servlet.http.HttpSession;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.view.RedirectView;
-import org.springframework.web.util.UriComponentsBuilder;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Optional;
-import java.util.UUID;
 
 @Controller
 public class GoogleAuthController {
 
     private final UserRepository userRepository;
+    private final GoogleOAuthService googleOAuthService;
 
-    @Value("${google.oauth.client-id:YOUR_GOOGLE_CLIENT_ID}")
-    private String clientId;
+    private final String clientId = mustGetEnv("GOOGLE_CLIENT_ID");
+    private final String clientSecret = mustGetEnv("GOOGLE_CLIENT_SECRET");
+    private final String redirectUri = mustGetEnv("GOOGLE_REDIRECT_URI");
 
-    @Value("${google.oauth.client-secret:YOUR_GOOGLE_CLIENT_SECRET}")
-    private String clientSecret;
-
-    @Value("${google.oauth.redirect-uri:http://localhost:8080/oauth2/callback/google}")
-    private String redirectUri;
-
-    public GoogleAuthController(UserRepository userRepository) {
+    public GoogleAuthController(UserRepository userRepository, GoogleOAuthService googleOAuthService) {
         this.userRepository = userRepository;
+        this.googleOAuthService = googleOAuthService;
     }
 
-    @GetMapping("/gmail/connect")
-    public RedirectView connect(HttpSession session) {
-        // Resolve current user
-        String email = resolveSessionEmail(session);
-        if (email == null) {
-            return new RedirectView("/login?error=not_authenticated");
+    private static String mustGetEnv(String name) {
+        String v = System.getenv(name);
+        if (v == null || v.isBlank()) {
+            throw new IllegalStateException("Missing required environment variable: " + name);
         }
-
-        // Short-circuit if already connected
-        Optional<User> userOpt = userRepository.findByEmail(email);
-        if (userOpt.isPresent() && userOpt.get().isGmailConnected()) {
-            return new RedirectView("/?info=gmail_already_connected");
-        }
-
-        // CSRF protection via state
-        String state = UUID.randomUUID().toString();
-        session.setAttribute("google_oauth_state", state);
-
-        URI authUri = UriComponentsBuilder
-                .fromUriString("https://accounts.google.com/o/oauth2/v2/auth")
-                .queryParam("client_id", clientId)
-                .queryParam("redirect_uri", redirectUri)
-                .queryParam("response_type", "code")
-                .queryParam("scope", String.join(" ",
-                        "openid",
-                        "email",
-                        "profile",
-                        "https://www.googleapis.com/auth/gmail.readonly"))
-                .queryParam("access_type", "offline")
-                .queryParam("include_granted_scopes", "true")
-                .queryParam("state", state)
-                .build()
-                .encode(StandardCharsets.UTF_8)
-                .toUri();
-
-        return new RedirectView(authUri.toString());
+        return v;
     }
 
+    private static String randomState() {
+        byte[] bytes = new byte[24];
+        new SecureRandom().nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    /**
+     * Start Google OAuth flow.
+     * Expects the current user to be present in session under "userEmail".
+     */
+    @GetMapping("/oauth2/google")
+    public RedirectView startGoogleOAuth(HttpSession session) throws Exception {
+        String state = randomState();
+        session.setAttribute("oauth_state", state);
+        String url = googleOAuthService.buildAuthorizationUrl(redirectUri, state);
+        return new RedirectView(url);
+    }
+
+    /**
+     * Handle Google OAuth callback.
+     * Stores tokens for the currently logged-in user and marks Gmail connected.
+     */
     @GetMapping("/oauth2/callback/google")
-    public RedirectView callback(
-            @RequestParam(value = "code", required = false) String code,
-            @RequestParam(value = "state", required = false) String state,
-            HttpSession session,
-            RedirectAttributes redirectAttributes) {
-
-        // Validate state
-        String expectedState = (String) session.getAttribute("google_oauth_state");
-        session.removeAttribute("google_oauth_state");
-        if (expectedState == null || state == null || !expectedState.equals(state)) {
-            redirectAttributes.addFlashAttribute("error", "Invalid OAuth state.");
-            return new RedirectView("/?error=invalid_state");
+    public RedirectView handleGoogleCallback(@RequestParam("code") String code,
+                                             @RequestParam("state") String state,
+                                             HttpSession session) throws Exception {
+        String expected = (String) session.getAttribute("oauth_state");
+        session.removeAttribute("oauth_state");
+        if (expected == null || !expected.equals(state)) {
+            throw new IllegalStateException("Invalid OAuth state");
         }
 
-        if (code == null || code.isBlank()) {
-            redirectAttributes.addFlashAttribute("error", "Missing authorization code.");
-            return new RedirectView("/?error=missing_code");
+        // Resolve the current user from the session
+        String userEmail = (String) session.getAttribute("userEmail"); // set this at login
+        if (userEmail == null || userEmail.isBlank()) {
+            throw new IllegalStateException("No logged-in user context in session");
         }
 
-        // Exchange authorization code for tokens (placeholder; implement HTTP POST to Google's token endpoint)
-        session.setAttribute("gmail_access_token", "<ACCESS_TOKEN_PLACEHOLDER>");
-        session.setAttribute("gmail_refresh_token", "<REFRESH_TOKEN_PLACEHOLDER>");
+        Optional<User> userOpt = userRepository.findByEmail(userEmail);
+        User user = userOpt.orElseThrow(() -> new IllegalStateException("User not found for email: " + userEmail));
 
-        // Mark the user as connected
-        String email = resolveSessionEmail(session);
-        if (email != null) {
-            userRepository.findByEmail(email).ifPresent(user -> {
-                user.setGmailConnected(true);
-                userRepository.save(user);
-            });
-        } else {
-            redirectAttributes.addFlashAttribute("warning", "Connected to Google, but user session was not found.");
-        }
+        // Exchange code and persist tokens
+        googleOAuthService.exchangeCodeAndStoreTokens(code, redirectUri, String.valueOf(user.getId()));
 
-        redirectAttributes.addFlashAttribute("success", "Gmail successfully connected.");
-        return new RedirectView("/?success=gmail_connected");
+        // Mark user as Gmail connected if your User entity supports it
+        user.setGmailConnected(true);
+        userRepository.save(user);
+
+        // Redirect back to your dashboard or success page
+        return new RedirectView("/dashboard");
     }
 
-    @PostMapping("/gmail/disconnect")
-    public RedirectView disconnect(RedirectAttributes redirectAttributes) {
-        // Access current session without changing method signature
-        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        HttpSession session = (attrs != null) ? attrs.getRequest().getSession(false) : null;
+    /**
+     * Fetch the latest email and analyze it with AI.
+     * Returns JSON with fields: company, position, status, contact, important_dates.
+     */
+    @GetMapping("/gmail/fetch-latest")
+    public ResponseEntity<String> fetchLatestAndAnalyze(HttpSession session) throws Exception {
+        String userEmail = (String) session.getAttribute("userEmail");
+        if (userEmail == null || userEmail.isBlank()) {
+            return ResponseEntity.badRequest().body("{\"error\":\"No logged-in user context\"}");
+        }
+        Optional<User> userOpt = userRepository.findByEmail(userEmail);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("{\"error\":\"User not found\"}");
+        }
+        String userId = String.valueOf(userOpt.get().getId());
 
-        String email = resolveSessionEmail(session);
-        if (email != null) {
-            userRepository.findByEmail(email).ifPresent(user -> {
-                user.setGmailConnected(false);
-                userRepository.save(user);
-            });
+        Gmail gmail = googleOAuthService.buildGmailService(userId);
+        String body = GmailQuickstart.fetchLatestEmailPlainText(gmail);
+        if (body.isBlank()) {
+            return ResponseEntity.ok("{\"message\":\"No recent emails found\"}");
         }
 
-        // Clear session-stored token placeholders if present
-        if (session != null) {
-            session.removeAttribute("gmail_access_token");
-            session.removeAttribute("gmail_refresh_token");
-        }
-
-        // Placeholder: Revoke tokens using Google's revocation endpoint if persisted
-        redirectAttributes.addFlashAttribute("success", "Gmail disconnected.");
-        return new RedirectView("/?success=gmail_disconnected");
-    }
-
-    @GetMapping("/gmail/check")
-    public RedirectView checkEmails(HttpSession session) {
-        String email = resolveSessionEmail(session);
-        if (email == null) {
-            return new RedirectView("/login?error=not_authenticated");
-        }
-
-        Optional<User> userOpt = userRepository.findByEmail(email);
-        if (userOpt.isEmpty() || !userOpt.get().isGmailConnected()) {
-            return new RedirectView("/?error=gmail_not_connected");
-        }
-
-        if (session.getAttribute("gmail_access_token") == null) {
-            return new RedirectView("/?error=missing_token");
-        }
-
-        // Placeholder: Call Gmail API with the access token to check emails
-        return new RedirectView("/?info=checked_emails");
-    }
-
-    private String resolveSessionEmail(HttpSession session) {
-        if (session == null) return null;
-        Object v = session.getAttribute("userEmail");
-        if (!(v instanceof String s) || s.isBlank()) {
-            v = session.getAttribute("email");
-            if (!(v instanceof String s2) || s2.isBlank()) {
-                return null;
-            }
-            return (String) v;
-        }
-        return (String) v;
+        String apiKey = mustGetEnv("OPENAI_API_KEY");
+        JsonObject result = GmailQuickstart.extractJobInfoWithAI(body, apiKey);
+        Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+        return ResponseEntity.ok(gson.toJson(result));
     }
 }

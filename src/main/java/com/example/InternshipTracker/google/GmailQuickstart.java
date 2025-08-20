@@ -1,37 +1,87 @@
+// Java
 package com.example.InternshipTracker.google;
 
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.gmail.Gmail;
-import com.google.api.services.gmail.model.*;
-import com.google.gson.*;
-import org.springframework.stereotype.Service;
+import com.google.api.services.gmail.model.Message;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
-import java.io.*;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.util.*;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
 
 @Service
 public class GmailQuickstart {
     private static final String APPLICATION_NAME = "Gmail API Java Quickstart";
-    private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
-
-    // Directory where OAuth tokens are stored locally
-    private static final String TOKENS_DIRECTORY_PATH = "tokens";
+    private static final com.google.api.client.json.JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 
     // Only read emails
-    private static final List<String> SCOPES = Collections.singletonList(GmailScopes.GMAIL_READONLY);
+    private static final List<String> SCOPES = Collections.singletonList("https://www.googleapis.com/auth/gmail.readonly");
 
-    // Expect credentials.json on the classpath (e.g., src/main/resources/credentials.json)
-    private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
+    /**
+     * Fetches the latest email body (text/plain if available; fallback to text/html stripped) from the user's mailbox.
+     */
+    public static String fetchLatestEmailPlainText(Gmail gmail) throws Exception {
+        var list = gmail.users().messages().list("me")
+                .setMaxResults(1L)
+                .setQ("newer_than:14d category:primary")
+                .execute();
+
+        List<Message> messages = list.getMessages();
+        if (messages == null || messages.isEmpty()) {
+            return "";
+        }
+
+        String messageId = messages.get(0).getId();
+        var msg = gmail.users().messages().get("me", messageId).setFormat("FULL").execute();
+
+        var payload = msg.getPayload();
+        if (payload == null) return "";
+
+        // Try to find text/plain part
+        String text = findPart(payload, "text/plain")
+                .or(() -> findPart(payload, "text/html").map(GmailQuickstart::stripHtml))
+                .orElse("");
+
+        return text;
+    }
+
+    private static Optional<String> findPart(com.google.api.services.gmail.model.MessagePart part, String mimeType) {
+        if (part.getMimeType() != null && part.getMimeType().startsWith(mimeType) && part.getBody() != null && part.getBody().getData() != null) {
+            return Optional.of(decodeBase64Url(part.getBody().getData()));
+        }
+        if (part.getParts() != null) {
+            for (var p : part.getParts()) {
+                var found = findPart(p, mimeType);
+                if (found.isPresent()) return found;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static String stripHtml(String html) {
+        return html.replaceAll("(?s)<style.*?</style>", " ")
+                .replaceAll("(?s)<script.*?</script>", " ")
+                .replaceAll("<br\\s*/?>", "\n")
+                .replaceAll("<[^>]+>", " ")
+                .replaceAll("&nbsp;", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private static String decodeBase64Url(String data) {
+        byte[] decoded = Base64.getUrlDecoder().decode(data);
+        return new String(decoded, StandardCharsets.UTF_8);
+    }
 
     /**
      * Calls an AI endpoint to extract job info from an email body.
@@ -39,282 +89,53 @@ public class GmailQuickstart {
      */
     public static JsonObject extractJobInfoWithAI(String emailContent, String apiKey) throws Exception {
         if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalArgumentException("Missing API key for AI extraction. Set OPENAI_API_KEY or pass a non-empty key.");
+            throw new IllegalArgumentException("Missing API key for AI extraction. Set OPENAI_API_KEY.");
         }
+        String prompt = """
+            Extract job application information as a compact JSON object with keys: company, position, status, contact, important_dates.
+            If not present, use empty strings. Only return valid JSON, no extra text.
+            Email:
+            """ + emailContent;
 
-        // Provide a short instruction to respond with a compact JSON object only.
-        String instruction = "Extract internship or job tracking info from the email. " +
-                "Return a compact JSON object with fields: company (string), position (string), status (string either Pending,Under Review,Accepted,Rejected or null if not internship or job), " +
-                "deadline (string in format yyyy-MM-dd or null). If uncertain, use null.";
+        JsonObject body = new JsonObject();
+        body.addProperty("model", "gpt-4o-mini");
+        var messages = new com.google.gson.JsonArray();
+        var sys = new JsonObject();
+        sys.addProperty("role", "system");
+        sys.addProperty("content", "You extract structured job application data. Respond ONLY with a JSON object.");
+        var usr = new JsonObject();
+        usr.addProperty("role", "user");
+        usr.addProperty("content", prompt);
+        messages.add(sys);
+        messages.add(usr);
+        body.add("messages", messages);
+        // Ask for JSON object output
+        var responseFormat = new JsonObject();
+        responseFormat.addProperty("type", "json_object");
+        body.add("response_format", responseFormat);
 
-        JsonArray messages = new JsonArray();
-        JsonObject systemMsg = new JsonObject();
-        systemMsg.addProperty("role", "system");
-        systemMsg.addProperty("content", instruction);
-        messages.add(systemMsg);
-
-        JsonObject userMsg = new JsonObject();
-        userMsg.addProperty("role", "user");
-        userMsg.addProperty("content", emailContent == null ? "" : emailContent);
-        messages.add(userMsg);
-
-        JsonObject payload = new JsonObject();
-        payload.addProperty("model", "gpt-4o-mini");
-        payload.add("messages", messages);
-        payload.addProperty("temperature", 0);
-
-        String requestBody = new Gson().toJson(payload);
-
+        HttpClient http = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(new URI("https://api.openai.com/v1/chat/completions"))
+                .uri(URI.create("https://api.openai.com/v1/chat/completions"))
+                .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + apiKey.trim())
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
                 .build();
 
-        HttpClient client = HttpClient.newHttpClient();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-        if (response.statusCode() / 100 != 2) {
-            throw new IOException("AI API call failed with status " + response.statusCode() + ": " + response.body());
+        HttpResponse<String> resp = http.send(request, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() / 100 != 2) {
+            throw new IllegalStateException("AI API error: HTTP " + resp.statusCode() + " - " + resp.body());
         }
 
-        JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
-        JsonArray choices = json.getAsJsonArray("choices");
+        var json = JsonParser.parseString(resp.body()).getAsJsonObject();
+        var choices = json.getAsJsonArray("choices");
         if (choices == null || choices.isEmpty()) {
-            throw new IllegalStateException("AI response did not contain choices.");
+            throw new IllegalStateException("AI API returned no choices");
         }
+        var content = choices.get(0).getAsJsonObject()
+                .getAsJsonObject("message")
+                .get("content").getAsString();
 
-        JsonObject firstChoice = choices.get(0).getAsJsonObject();
-        JsonObject message = firstChoice.getAsJsonObject("message");
-        if (message == null || !message.has("content")) {
-            throw new IllegalStateException("AI response missing message content.");
-        }
-
-        String content = message.get("content").getAsString();
-        // Expect JSON content. If it's not strictly JSON, try to find a JSON object in the text.
-        try {
-            return JsonParser.parseString(content).getAsJsonObject();
-        } catch (Exception ignore) {
-            // Best-effort fallback: attempt to extract the first JSON object substring.
-            int start = content.indexOf('{');
-            int end = content.lastIndexOf('}');
-            if (start >= 0 && end > start) {
-                String candidate = content.substring(start, end + 1);
-                return JsonParser.parseString(candidate).getAsJsonObject();
-            }
-            throw new IllegalStateException("AI response content was not valid JSON: " + content);
-        }
-    }
-
-    private static Credential getCredentials(final HttpTransport httpTransport) throws IOException {
-        InputStream in = GmailQuickstart.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
-        if (in == null) {
-            throw new FileNotFoundException("credentials.json not found on classpath at: " + CREDENTIALS_FILE_PATH);
-        }
-        try (Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
-            GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, reader);
-
-            // Store tokens under user home to persist across runs
-            File tokensDir = new File(System.getProperty("user.home"), ".gmail/" + TOKENS_DIRECTORY_PATH);
-            if (!tokensDir.exists() && !tokensDir.mkdirs()) {
-                throw new IOException("Failed to create tokens directory: " + tokensDir.getAbsolutePath());
-            }
-
-            GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                    httpTransport, JSON_FACTORY, clientSecrets, SCOPES)
-                    .setDataStoreFactory(new FileDataStoreFactory(tokensDir))
-                    .setAccessType("offline")
-                    .build();
-
-            LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-            return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
-        }
-    }
-
-    private static String getPlainTextFromMessage(Message message) {
-        if (message == null) return "";
-        MessagePart payload = message.getPayload();
-        if (payload == null) return "";
-        // Prefer text/plain, fall back to text/html (stripped)
-        String text = getTextFromPart(payload, true);
-        if (text.isBlank()) {
-            text = getTextFromPart(payload, false);
-        }
-        return text.trim();
-    }
-
-    /**
-     * Recursively extract text from a message part.
-     * @param preferPlain if true, prefers text/plain; if false, returns text/html (stripped) if plain not found.
-     */
-    private static String getTextFromPart(MessagePart part, boolean preferPlain) {
-        if (part == null) return "";
-
-        String mime = Optional.ofNullable(part.getMimeType()).orElse("").toLowerCase(Locale.ROOT);
-        String data = decodeBody(part.getBody());
-
-        if (preferPlain) {
-            if (mime.startsWith("text/plain")) {
-                return data;
-            }
-        } else {
-            if (mime.startsWith("text/html")) {
-                return stripHtml(data);
-            }
-        }
-
-        if (part.getParts() != null && !part.getParts().isEmpty()) {
-            String best = "";
-            for (MessagePart sub : part.getParts()) {
-                String candidate = getTextFromPart(sub, preferPlain);
-                if (!candidate.isBlank()) {
-                    // Return first non-blank match in the preferred type
-                    return candidate;
-                }
-                if (best.isBlank()) {
-                    best = candidate;
-                }
-            }
-            return best;
-        }
-
-        // If it's single-part but not the preferred type, optional fallback
-        if (!preferPlain && mime.startsWith("text/plain")) {
-            return data;
-        }
-        if (preferPlain && mime.startsWith("text/html")) {
-            return stripHtml(data);
-        }
-
-        return "";
-    }
-
-    private static String decodeBody(MessagePartBody body) {
-        if (body == null || body.getData() == null) return "";
-        String raw = body.getData();
-        try {
-            int padding = (4 - (raw.length() % 4)) % 4;
-            String padded = raw + "=".repeat(padding);
-            byte[] decoded = Base64.getUrlDecoder().decode(padded);
-            return new String(decoded, StandardCharsets.UTF_8);
-        } catch (IllegalArgumentException e) {
-            // Fallback: try standard Base64 after URL char replacements
-            String fixed = raw.replace('-', '+').replace('_', '/');
-            int padding2 = (4 - (fixed.length() % 4)) % 4;
-            fixed = fixed + "=".repeat(padding2);
-            try {
-                byte[] decoded = Base64.getDecoder().decode(fixed);
-                return new String(decoded, StandardCharsets.UTF_8);
-            } catch (Exception ignore) {
-                return "";
-            }
-        }
-    }
-
-    private static String stripHtml(String html) {
-        if (html == null || html.isBlank()) return "";
-        // Minimal HTML tag stripping to keep dependencies low.
-        // For better results, consider an HTML parser.
-        String text = html.replaceAll("(?is)<script.*?>.*?</script>", " ")
-                .replaceAll("(?is)<style.*?>.*?</style>", " ")
-                .replaceAll("(?s)<br\\s*/?>", "\n")
-                .replaceAll("(?s)</p>", "\n")
-                .replaceAll("(?s)<[^>]+>", " ");
-        // Collapse whitespace
-        return text.replaceAll("[ \\t\\x0B\\f\\r]+", " ").replaceAll("\\n{3,}", "\n\n").trim();
-    }
-
-    private final GoogleOAuthService googleOAuthService;
-
-    public GmailQuickstart(GoogleOAuthService googleOAuthService) {
-        this.googleOAuthService = googleOAuthService;
-    }
-
-    public List<JsonObject> fetchEmailsWithAi(String userId) throws GeneralSecurityException, IOException {
-        HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-
-        // Get credentials for specific user
-        Credential credential = googleOAuthService.getCredentialsForUser(userId);
-
-        Gmail service = new Gmail.Builder(httpTransport, JSON_FACTORY, credential)
-                .setApplicationName(APPLICATION_NAME)
-                .build();
-        ListMessagesResponse listResponse = service.users()
-                .messages()
-                .list("me")
-                .setMaxResults(1L)  // Fixed: Use 10L instead of 1L to get more messages
-                .setQ("newer_than:30d")
-                .execute();
-
-        List<Message> messages = listResponse.getMessages();
-        System.out.println("hello");
-        if (messages == null || messages.isEmpty()) {
-            System.out.println("No messages found.");
-            return Collections.emptyList();  // Return empty list instead of null
-        }
-
-        List<JsonObject> results = new ArrayList<>();
-        String apiKey = System.getenv("OPENAI_API_KEY");  // Get API key from environment
-
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("OPENAI_API_KEY environment variable not set");
-        }
-
-        for (Message messageSummary : messages) {
-            try {
-                // Get the full message
-                Message message = service.users().messages().get("me", messageSummary.getId())
-                        .setFormat("full")  // Get full message with payload
-                        .execute();
-
-                // Extract plain text from message
-                String emailContent = getPlainTextFromMessage(message);
-
-                if (emailContent != null && !emailContent.isBlank()) {
-                    // Extract job info using AI
-                    JsonObject jobInfo = extractJobInfoWithAI(emailContent, apiKey);
-
-                    // Add metadata to the result
-                    jobInfo.addProperty("messageId", messageSummary.getId());
-                    jobInfo.addProperty("snippet", message.getSnippet());
-
-                    // Add headers if available
-                    JsonObject headers = new JsonObject();
-                    if (message.getPayload() != null && message.getPayload().getHeaders() != null) {
-                        for (MessagePartHeader header : message.getPayload().getHeaders()) {
-                            if (header.getName() != null && header.getValue() != null) {
-                                headers.addProperty(header.getName(), header.getValue());
-                            }
-                        }
-                    }
-                    jobInfo.add("headers", headers);
-
-                    results.add(jobInfo);
-                }
-            } catch (Exception e) {
-                System.err.println("Error processing message " + messageSummary.getId() + ": " + e.getMessage());
-                // Continue with next message instead of failing completely
-            }
-        }
-
-        return results;
-    }
-
-    public static void main(String[] args) {
-        GmailQuickstart quickstart = new GmailQuickstart();
-        try {
-            List<JsonObject> emailsWithAi = quickstart.fetchEmailsWithAi();
-            System.out.println("Processed " + emailsWithAi.size() + " emails:");
-
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            for (JsonObject email : emailsWithAi) {
-                System.out.println(gson.toJson(email));
-                System.out.println("---");
-            }
-        } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
-            e.printStackTrace();
-        }
+        return JsonParser.parseString(content).getAsJsonObject();
     }
 }
