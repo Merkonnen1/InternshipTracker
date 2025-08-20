@@ -240,7 +240,7 @@ public class GmailQuickstart {
         ListMessagesResponse listResponse = service.users()
                 .messages()
                 .list("me")
-                .setMaxResults(10L)  // Fixed: Use 10L instead of 1L to get more messages
+                .setMaxResults(1L)  // Fixed: Use 10L instead of 1L to get more messages
                 .setQ("newer_than:30d")
                 .execute();
 
