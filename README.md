@@ -13,8 +13,8 @@ A Spring Boot (Jakarta) CRUD application to manage internship applications and d
 - Production-ready configuration via environment variables.
 
 ## Screenshots
-![Screenshot 2025-08-20 at 13.37.32.png](../../../../var/folders/gr/dzzbbtzj0jzgvvrj7f73c4cr0000gn/T/TemporaryItems/NSIRD_screencaptureui_R49HAu/Screenshot%202025-08-20%20at%2013.37.32.png)
 ### Prerequisites
+<img width="1325" height="564" alt="Screenshot 2025-08-20 at 13 43 25" src="https://github.com/user-attachments/assets/d22a9fba-b6bd-46f2-a776-52f54dcc0cfc" />
 
 - Java 24 (JDK 24)
 - Maven 3.9+ (or use the Maven Wrapper: ./mvnw)
