@@ -10,6 +10,7 @@ A Spring Boot (Jakarta) CRUD application to manage internship applications and d
 A web application to manage internship applications and deadlines, providing an organized dashboard to track status and upcoming deadlines
 
 ## Features
+
 - CRUD for internships/applications: company, position/title, status, deadline, notes.
 - Dashboard for upcoming deadlines and application status at a glance.
 - Production-ready configuration via environment variables.
@@ -23,16 +24,17 @@ A web application to manage internship applications and deadlines, providing an 
 - PostgreSQL 14+ (local or Docker)
 
 ## Key Features:
-•	Full CRUD operations for internship applications (company, position, status, deadline, notes)
-•	Dashboard for quick overview of application progress and deadlines
-•	Production-ready with configurable environment variables
+	•	Full CRUD operations for internship applications (company, position, status, deadline, notes)
+	•	Dashboard for quick overview of application progress and deadlines
+	•	Production-ready with configurable environment variables
+ 
+## Highlights
 
-## Highlights:
+	•	Implemented using Spring Boot with PostgreSQL backend
+	•	Ensured clean architecture and maintainable codebase
+	•	Deployed live for remote access
+ 
+## Contact
 
-•	Implemented using Spring Boot with PostgreSQL backend
-•	Ensured clean architecture and maintainable codebase
-•	Deployed live for remote access
-
-## Contact:
 - Author: <Adonay Merkonnen>
 - Live app: https://internshiptracker-dae4115676ce.herokuapp.com
