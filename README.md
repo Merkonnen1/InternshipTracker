@@ -24,15 +24,15 @@ A web application to manage internship applications and deadlines, providing an 
 - PostgreSQL 14+ (local or Docker)
 
 ## Key Features:
-	•	Full CRUD operations for internship applications (company, position, status, deadline, notes)
-	•	Dashboard for quick overview of application progress and deadlines
-	•	Production-ready with configurable environment variables
+•	Full CRUD operations for internship applications (company, position, status, deadline, notes)
+•	Dashboard for quick overview of application progress and deadlines
+•	Production-ready with configurable environment variables
  
 ## Highlights
 
-	•	Implemented using Spring Boot with PostgreSQL backend
-	•	Ensured clean architecture and maintainable codebase
-	•	Deployed live for remote access
+•	Implemented using Spring Boot with PostgreSQL backend
+•	Ensured clean architecture and maintainable codebase
+•	Deployed live for remote access
  
 ## Contact
 
