@@ -137,8 +137,6 @@ public class GmailQuickstart {
         }
     }
 
-
-
     private static String getPlainTextFromMessage(Message message) {
         if (message == null) return "";
         MessagePart payload = message.getPayload();
@@ -231,9 +229,9 @@ public class GmailQuickstart {
         // Collapse whitespace
         return text.replaceAll("[ \\t\\x0B\\f\\r]+", " ").replaceAll("\\n{3,}", "\n\n").trim();
     }
+
     public List<JsonObject> fetchEmailsWithAi() throws GeneralSecurityException, IOException {
         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-
         Gmail service = new Gmail.Builder(httpTransport, JSON_FACTORY, getCredentials(httpTransport))
                 .setApplicationName(APPLICATION_NAME)
                 .build();
@@ -242,16 +240,77 @@ public class GmailQuickstart {
         ListMessagesResponse listResponse = service.users()
                 .messages()
                 .list("me")
-                .setMaxResults(1L)
+                .setMaxResults(10L)  // Fixed: Use 10L instead of 1L to get more messages
                 .setQ("newer_than:30d")
                 .execute();
 
         List<Message> messages = listResponse.getMessages();
         if (messages == null || messages.isEmpty()) {
             System.out.println("No messages found.");
-                return null;
+            return Collections.emptyList();  // Return empty list instead of null
         }
-        return new ArrayList<>();
+
+        List<JsonObject> results = new ArrayList<>();
+        String apiKey = System.getenv("OPENAI_API_KEY");  // Get API key from environment
+
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("OPENAI_API_KEY environment variable not set");
+        }
+
+        for (Message messageSummary : messages) {
+            try {
+                // Get the full message
+                Message message = service.users().messages().get("me", messageSummary.getId())
+                        .setFormat("full")  // Get full message with payload
+                        .execute();
+
+                // Extract plain text from message
+                String emailContent = getPlainTextFromMessage(message);
+
+                if (emailContent != null && !emailContent.isBlank()) {
+                    // Extract job info using AI
+                    JsonObject jobInfo = extractJobInfoWithAI(emailContent, apiKey);
+
+                    // Add metadata to the result
+                    jobInfo.addProperty("messageId", messageSummary.getId());
+                    jobInfo.addProperty("snippet", message.getSnippet());
+
+                    // Add headers if available
+                    JsonObject headers = new JsonObject();
+                    if (message.getPayload() != null && message.getPayload().getHeaders() != null) {
+                        for (MessagePartHeader header : message.getPayload().getHeaders()) {
+                            if (header.getName() != null && header.getValue() != null) {
+                                headers.addProperty(header.getName(), header.getValue());
+                            }
+                        }
+                    }
+                    jobInfo.add("headers", headers);
+
+                    results.add(jobInfo);
+                }
+            } catch (Exception e) {
+                System.err.println("Error processing message " + messageSummary.getId() + ": " + e.getMessage());
+                // Continue with next message instead of failing completely
+            }
+        }
+
+        return results;
     }
 
+    public static void main(String[] args) {
+        GmailQuickstart quickstart = new GmailQuickstart();
+        try {
+            List<JsonObject> emailsWithAi = quickstart.fetchEmailsWithAi();
+            System.out.println("Processed " + emailsWithAi.size() + " emails:");
+
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            for (JsonObject email : emailsWithAi) {
+                System.out.println(gson.toJson(email));
+                System.out.println("---");
+            }
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 }
