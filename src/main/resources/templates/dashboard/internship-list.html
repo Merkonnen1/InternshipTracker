@@ -14,16 +14,6 @@
   <form th:action="@{/logout}" method="post" style="display: inline;">
     <button type="submit" class="btn btn-primary">Logout</button>
   </form>
-  <form th:action="@{/gmail/connect}" method="get" style="display: inline;">
-    <button type="submit" class="btn btn-primary" th:disabled="${user.gmailConnected}">Connect Email</button>
-    <span class="ms-2 text-success" th:if="${user.gmailConnected}">Connected</span>
-  </form>
-  <form th:action="@{/gmail/disconnect}" method="post" style="display: inline;">
-    <button type="submit" class="btn btn-danger" th:if="${user.gmailConnected}">Disconnect</button>
-  </form>
-      <form th:action="@{/gmail/check}" method="get" style="display: inline;">
-        <button type="submit" class="btn btn-outline-primary" th:if="${user.gmailConnected}">Check</button>
-      </form>
   <table class="table table-striped table-bordered">
     <thead class="table-light">
       <tr>
