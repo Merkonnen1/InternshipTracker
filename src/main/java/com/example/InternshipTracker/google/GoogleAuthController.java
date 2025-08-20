@@ -78,11 +78,14 @@ public class GoogleAuthController {
         userRepository.save(user);
         return new RedirectView("/dashboard");
     }
+
     @GetMapping("/gmail/check")
     public RedirectView checkEmails(HttpSession session) throws Exception {
         String appUserId = internshipService.getCurrentUser().getId().toString();
         GmailQuickstart gmailQuickstart = new GmailQuickstart();
+        System.out.println("hello_before");
         List<JsonObject> ans = gmailQuickstart.fetchEmailsWithAi();
+        System.out.println("hello_after");
         for (JsonObject i:ans){
             Internship internship = new Internship();
             JsonElement company = i.get("company");

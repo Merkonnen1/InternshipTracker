@@ -231,6 +231,7 @@ public class GmailQuickstart {
     }
 
     public List<JsonObject> fetchEmailsWithAi() throws GeneralSecurityException, IOException {
+        System.out.println("hello2");
         HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         Gmail service = new Gmail.Builder(httpTransport, JSON_FACTORY, getCredentials(httpTransport))
                 .setApplicationName(APPLICATION_NAME)
