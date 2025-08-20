@@ -17,8 +17,8 @@ A web application to manage internship applications and deadlines, providing an 
 
 ## Screenshots
 <img width="1325" height="564" alt="Screenshot 2025-08-20 at 13 43 25" src="https://github.com/user-attachments/assets/d22a9fba-b6bd-46f2-a776-52f54dcc0cfc" />
-### Prerequisites
 
+## Prerequisites:
 - Java 24 (JDK 24)
 - Maven 3.9+ (or use the Maven Wrapper: ./mvnw)
 - PostgreSQL 14+ (local or Docker)
