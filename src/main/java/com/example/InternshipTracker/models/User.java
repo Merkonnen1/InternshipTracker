@@ -10,7 +10,6 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private boolean gmailConnected = false;
     @Column(nullable = false)
     private String firstname;
 
@@ -21,14 +20,6 @@ public class User {
 
     @Column(nullable = false)
     private String password;
-
-    public boolean isGmailConnected() {
-        return gmailConnected;
-    }
-
-    public void setGmailConnected(boolean gmailConnected) {
-        this.gmailConnected = gmailConnected;
-    }
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private Set<Internship> internships = new HashSet<>();

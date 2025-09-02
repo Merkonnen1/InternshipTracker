@@ -36,10 +36,10 @@
                         <label Class="col-sm-4 col-form-label">Status</label>
                         <div class="col-sm-8">
                                 <select class="form-select" th:field="${internshipDto.status}">
-                                    <option value="Pending">Pending</option>
-                                    <option value="Under Review">Under Review</option>
-                                    <option value="Accepted">Accepted</option>
-                                    <option value="Rejected">Rejected</option>
+                                    <option class="status-pending" value="Pending">Pending</option>
+                                    <option class="status-review" value="Under Review">Under Review</option>
+                                    <option class="status-accepted" value="Accepted">Accepted</option>
+                                    <option class="status-rejected" value="Rejected">Rejected</option>
                                 </select>
                             <p th:if="${#fields != null and #fields.hasErrors('status')}"
                                th:errors="${internshipDto.status}" class="text-danger"></p>
