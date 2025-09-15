@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Demo Dashboard - Internship Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+    <link rel="stylesheet" th:href="@{/assets/internship.css}" />
+</head>
+<body>
+<div class="alert alert-info text-center" role="alert">
+    <strong>Demo Mode</strong> - Feel free to add and edit internships. Changes will be reset when you logout.
+</div>
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Demo Dashboard</h1>
+        <div>
+            <a th:href="@{/demo-dashboard/add}" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addInternshipModal">
+                Add Internship
+            </a>
+            <form th:action="@{/demo-dashboard/logout}" method="post" class="d-inline">
+                <button type="submit" class="btn btn-outline-secondary">Exit Demo</button>
+            </form>
+        </div>
+    </div>
+
+    <table class="table table-striped table-bordered">
+        <thead class="table-light">
+        <tr>
+            <th>Company</th>
+            <th>Position</th>
+            <th>Status</th>
+            <th>Deadline</th>
+            <th>Notes</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody class="table-group-divider">
+        <tr th:each="internship : ${internships}">
+            <td th:text="${internship.company} "></td>
+            <td th:text="${internship.position}"></td>
+            <td>
+          <span th:switch="${internship.status}">
+            <span th:case="'Pending'" class="status-pending" th:text="${internship.status}">Pending</span>
+            <span th:case="'Under Review'" class="status-review" th:text="${internship.status}">Under Review</span>
+            <span th:case="'Accepted'" class="status-accepted" th:text="${internship.status}">Accepted</span>
+            <span th:case="'Rejected'" class="status-rejected" th:text="${internship.status}">Rejected</span>
+            <span th:case="'Interview Scheduled'" class="status-interview" th:text="${internship.status}"></span>
+            <span th:case="'Offer received'" class="status-offer" th:text="${internship.status}"></span>
+          </span>
+            </td>
+            <td th:text="${internship.deadline}"></td>
+            <td th:text="${internship.notes}"></td>
+            <td style="white-space: nowrap">
+                <a class="btn btn-primary btn-sm"
+                   th:href="@{/demo-dashboard/edit (id=${internship.id})}">
+                    Edit
+                </a>
+                <a class="btn btn-danger btn-sn"
+                   th:href="@{/dashboard/delete(id=${internship.id})}"
+                   onclick="return confirm('Are you sure?') ">
+                    Delete
+                </a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>
