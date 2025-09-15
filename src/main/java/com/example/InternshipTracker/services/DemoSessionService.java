@@ -65,6 +65,11 @@ public class DemoSessionService {
         internships.add(internship);
     }
 
+    public void deleteInternship(String sessionId, Internship internship) {
+        Set<Internship> internships = getTemporaryInternships(sessionId);
+        internships.removeIf(i -> i.getId()==(internship.getId()));
+    }
+
     public void addInternship(String sessionId, Internship internship) {
         Set<Internship> internships = getTemporaryInternships(sessionId);
         int newId = internships.stream()
@@ -73,6 +78,12 @@ public class DemoSessionService {
                 .orElse(0) + 1;
         internship.setId(newId);
         internships.add(internship);
+    }
+    public Internship findInternshipById(String sessionId, int id) {
+        return getTemporaryInternships(sessionId).stream()
+                .filter(i -> i.getId() == id)
+                .findFirst()
+                .orElse(null);
     }
     public void clearSession(String sessionId) {
         temporaryDemoData.remove(sessionId);

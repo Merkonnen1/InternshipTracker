@@ -9,6 +9,7 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Optional;
 import java.util.Set;
 
 @Controller
@@ -23,7 +24,6 @@ public class DemoDashboardController {
     @GetMapping
     public String showDemoDashboard(Model model, HttpSession session) {
         String sessionId = session.getId();
-        System.out.println(sessionId);
         model.addAttribute("internships", demoSessionService.getTemporaryInternships(sessionId));
         return "dashboard/demo-internship-list";
     }
@@ -31,6 +31,12 @@ public class DemoDashboardController {
     public String showCreateForm(Model model) {
         model.addAttribute("internshipDto", new InternshipDto());
         return "dashboard/demo-create";
+    }
+    @GetMapping("/delete")
+    public String deleteInternship(@RequestParam int id, HttpSession session) {
+        Internship internship = demoSessionService.findInternshipById(session.getId(),id);
+        demoSessionService.deleteInternship(session.getId(),internship);
+        return "redirect:/demo-dashboard";
     }
     @PostMapping("/add")
     public String addInternship(@ModelAttribute Internship internship, HttpSession session) {
@@ -40,19 +46,14 @@ public class DemoDashboardController {
 
     @GetMapping("/edit")
     public String showEditForm(@RequestParam int id, Model model,HttpSession session) {
-        Set<Internship> internships = demoSessionService.getTemporaryInternships(session.getId());
+        Internship i = demoSessionService.findInternshipById(session.getId(),id);
         InternshipDto internshipDto = new InternshipDto();
-        for (Internship i : internships) {
-            if (i.getId() == id) {
-                internshipDto.setStatus(i.getStatus());
-                internshipDto.setNotes(i.getNotes());
-                internshipDto.setId(id);
-                internshipDto.setPosition(i.getPosition());
-                internshipDto.setDeadline(i.getDeadline());
-                internshipDto.setCompany(i.getCompany());
-                break;
-            }
-        }
+        internshipDto.setStatus(i.getStatus());
+        internshipDto.setNotes(i.getNotes());
+        internshipDto.setId(id);
+        internshipDto.setPosition(i.getPosition());
+        internshipDto.setDeadline(i.getDeadline());
+        internshipDto.setCompany(i.getCompany());
         model.addAttribute("internshipDto", internshipDto);
         return "dashboard/demo-edit";
     }
@@ -62,18 +63,13 @@ public class DemoDashboardController {
         if (result.hasErrors()) {
             return "dashboard/demo-edit";
         }
-        Set<Internship> internships = demoSessionService.getTemporaryInternships(session.getId());
-        for (Internship i : internships) {
-            if (i.getId() == id) {
-                i.setCompany(internshipDto.getCompany());
-                i.setPosition(internshipDto.getPosition());
-                i.setStatus(internshipDto.getStatus());
-                i.setDeadline(internshipDto.getDeadline());
-                i.setNotes(internshipDto.getNotes());
-                demoSessionService.updateInternship(session.getId(),i);
-                break;
-            }
-        }
+        Internship i = demoSessionService.findInternshipById(session.getId(),id);
+        i.setCompany(internshipDto.getCompany());
+        i.setPosition(internshipDto.getPosition());
+        i.setStatus(internshipDto.getStatus());
+        i.setDeadline(internshipDto.getDeadline());
+        i.setNotes(internshipDto.getNotes());
+        demoSessionService.updateInternship(session.getId(),i);
         return "redirect:/demo-dashboard";
     }
 
