@@ -1,10 +1,16 @@
 package com.example.InternshipTracker.services;
 
+import com.example.InternshipTracker.models.Internship;
 import com.example.InternshipTracker.models.User;
 import com.example.InternshipTracker.models.UserDto;
 import com.example.InternshipTracker.repositories.UserRepository;
+import jakarta.annotation.PostConstruct;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.List;
 
 @Service
 public class UserService {
@@ -30,4 +36,5 @@ public class UserService {
         user.setLastname(userDto.getLastname());
         userRepository.save(user);
     }
+
 }

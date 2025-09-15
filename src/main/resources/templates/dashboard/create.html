@@ -39,6 +39,8 @@
                             <option value="Under Review">Under Review</option>
                             <option value="Accepted">Accepted</option>
                             <option value="Rejected">Rejected</option>
+                            <option value="Interview Scheduled">Interview Scheduled</option>
+                            <option value="Offer received">Offer received</option>
                         </select>
                         <p th:if="${#fields != null and #fields.hasErrors('status')}"
                            th:errors="${internshipDto.status}" class="text-danger"></p>

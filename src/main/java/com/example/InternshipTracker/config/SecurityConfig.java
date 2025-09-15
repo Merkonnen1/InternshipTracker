@@ -25,7 +25,17 @@ public class SecurityConfig {
         http
             // keep CSRF enabled for login; we'll send the token from the form
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/register", "/login", "/css/**", "/js/**").permitAll()
+                    .requestMatchers(
+                            "/register",
+                            "/login",
+                            "/css/**",
+                            "/js/**",
+                            "/demo-dashboard/**",
+                            "/demo-login",
+                            "/demo-dashboard/add",
+                            "/demo-dashboard/edit/**", // Add wildcard for any edit paths
+                            "/assets/**"
+                    ).permitAll()
                     .requestMatchers("/dashboard/**").authenticated()
                     .anyRequest().authenticated()
             )

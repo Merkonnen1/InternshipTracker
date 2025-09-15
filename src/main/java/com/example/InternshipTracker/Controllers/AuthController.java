@@ -3,7 +3,9 @@ package com.example.InternshipTracker.Controllers;
 import com.example.InternshipTracker.models.User;
 import com.example.InternshipTracker.models.UserDto;
 import com.example.InternshipTracker.repositories.UserRepository;
+import com.example.InternshipTracker.services.DemoSessionService;
 import com.example.InternshipTracker.services.UserService;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,16 +20,25 @@ import org.springframework.web.bind.annotation.PostMapping;
 public class AuthController {
     private final UserRepository userRepository;
     private final UserService userService;
+    private final DemoSessionService demoSessionService;
 
-    public AuthController(UserRepository userRepository, UserService userService) {
+    public AuthController(UserRepository userRepository, UserService userService , DemoSessionService demoSessionService) {
         this.userRepository = userRepository;
         this.userService = userService;
+        this.demoSessionService = demoSessionService;
     }
 
     @GetMapping("/register")
     public String showRegistrationForm(Model model) {
         model.addAttribute("user", new UserDto());
         return "register";
+    }
+
+    @GetMapping("/demo-login")
+    public String demoLogin(HttpSession session) {
+        System.out.println("per");
+        demoSessionService.getTemporaryInternships(session.getId());
+        return "redirect:/demo-dashboard";
     }
 
     @GetMapping("/dashboard")
