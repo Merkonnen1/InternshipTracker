@@ -4,7 +4,7 @@ A Spring Boot (Jakarta) CRUD application to manage internship applications and d
 
 - Live demo: https://internshiptracker-dae4115676ce.herokuapp.com
 - Status: Active
-- Tech stack: Java 24, Spring Boot 3.x, Spring MVC, Spring Data JPA, PostgreSQL, NeonDB
+- Tech stack: Java 24, Spring Boot 3.x, Spring MVC, Spring Data JPA, PostgreSQL, Thymeleaf
 
 ## Description:
 A web application to manage internship applications and deadlines, providing an organized dashboard to track status and upcoming deadlines
